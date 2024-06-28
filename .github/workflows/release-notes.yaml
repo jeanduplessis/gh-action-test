@@ -1,0 +1,45 @@
+name: Release Notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      startTag:
+        description: 'Start tag'
+        required: true
+      endTag:
+        description: 'End Tag'
+        required: true
+
+env:
+  GO_VERSION: '1.22.4'
+
+jobs:
+  generate-release-notes:
+    runs-on: ubuntu-22.04
+
+    env:
+      ORG: "upbound"
+      REPO: "spaces"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{secrets.TOKEN}}
+          repository: '${{env.ORG}}/${{env.REPO}}'
+          ref: 'main'
+          fetch-tags: 'true'
+          path: '${{ github.workspace }}/repo'
+
+      - name: Setup Go
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install release-notes binary
+        run: go install k8s.io/release/cmd/release-notes@latest
+
+      - shell: bash
+        run: |
+          export GITHUB_TOKEN=${{ secrets.TOKEN }}
+          release-notes generate --branch="main" --required-author="" --org=${{env.ORG}} --repo=${{env.REPO}} --repo-path="${{ github.workspace }}/repo" --start-rev=${{inputs.startTag}} --end-rev=${{inputs.endTag}} --skip-first-commit=true --debug=true
